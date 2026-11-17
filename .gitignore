@@ -1,0 +1,19 @@
+# Auxiliares de LaTeX
+*.aux
+*.log
+*.synctex.gz
+*.out
+*.toc
+
+# Python
+__pycache__/
+*.pyc
+
+# Compilación
+build/
+
+# Videos pesados
+*.mp4
+*.mov
+*.avi
+*.mkv
