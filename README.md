@@ -2,4 +2,4 @@
 Proyecto avionica para AAIAQ
 
 holaaaaaaa
-git aldo
+git aldo:wq
