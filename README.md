@@ -1,7 +1,7 @@
-# avionica-reto-2026
-Proyecto avionica para AAIAQ
+//# avionica-reto-2026
+//Proyecto avionica para AAIAQ
 
-pines boton-15/morado-9/verde-10/azul-11/naranja-12/rojo-13
+//pines boton-15/morado-9/verde-10/azul-11/naranja-12/rojo-13
 
 #include <Arduino.h> //cpp
 
@@ -12,7 +12,9 @@ const int LED_DEPLOYMENT = 11;
 const int LED_LANDED = 12;
 const int LED_IGNICION = 13;
 
-enum Estado 
+const bool PRESIONADO = HIGH; //para que detecte si el boton cierra el circuito o no
+
+enum Estado  
 {
     IDLE, 
     ARMED, 
@@ -27,6 +29,89 @@ enum Evento
     PULSO_CORTO,
     PULSO_LARGO,
     PULSO_RARO
-}
+};
 
 Estado estadoActual = IDLE;
+
+// Detectar cuando el boton se presiona y guardar millis() como inicio para luego detectar cuando se suelta y calcular la duracion que serian los millis menos el inicio. Si la duracion < 1000 ms --PULSO_CORTO, si la duracion >= 2000 ms --PULSO_LARGO, si esta entre 1000 y 1999 ms --PULSO_RARO, si no pasa nada absoltmente nada --NINGUNO
+
+Evento leerBoton()
+{
+    return NINGUNO; 
+}
+
+void procesarEvento(Evento ev)
+{
+    switch (estadoActual) 
+    {
+        case IDLE:
+            if (ev == PULSO_LARGO)
+            {
+                estadoActual = ARMED;
+            }
+            else 
+            {
+                //ignorar
+            }
+            break;
+        case ARMED:
+            if (ev == PULSO_LARGO)
+            {
+                estadoActual = IDLE;
+            }
+            else if (ev == PULSO_CORTO)
+            {
+                estadoActual = ASCENT;
+            }
+            else
+            {
+                //ignorar
+            }
+            break;
+        case ASCENT:
+            if (ev == PULSO_CORTO)
+            {
+                estadoActual = DEPLOYMENT;
+            }
+            else 
+            {
+                //ignorar
+            }
+            break;
+        case DEPLOYMENT:
+            if (ev == PULSO_CORTO)
+            {
+                estadoActual = LANDED;
+            }
+            else 
+            {
+                //ignprar
+            }
+            break;
+        case LANDED:
+            //ignorar
+            break;
+    }
+}
+
+void loop() 
+{
+  Evento ev = leerBoton();      
+  if (ev != NINGUNO) 
+  {
+        procesarEvento(ev);
+  } 
+}
+
+
+void setup() 
+{
+  Serial.begin(115200);
+  pinMode(PIN_BOTON, INPUT);
+  pinMode(LED_IDLE, OUTPUT);
+  pinMode(LED_ARMED, OUTPUT);
+  pinMode(LED_DEPLOYMENT, OUTPUT);
+  pinMode(LED_LANDED, OUTPUT);
+  pinMode(LED_IGNICION, OUTPUT);
+}
+   
