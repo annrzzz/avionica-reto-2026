@@ -40,12 +40,12 @@ Evento leerBoton()
     return NINGUNO; 
 }
 
-void procesarEvento(Evento ev)
+void procesarEvento(Evento pulso)
 {
     switch (estadoActual) 
     {
         case IDLE:
-            if (ev == PULSO_LARGO)
+            if (pulso == PULSO_LARGO)
             {
                 estadoActual = ARMED;
             }
@@ -55,11 +55,11 @@ void procesarEvento(Evento ev)
             }
             break;
         case ARMED:
-            if (ev == PULSO_LARGO)
+            if (pulso == PULSO_LARGO)
             {
                 estadoActual = IDLE;
             }
-            else if (ev == PULSO_CORTO)
+            else if (pulso == PULSO_CORTO)
             {
                 estadoActual = ASCENT;
             }
@@ -69,7 +69,7 @@ void procesarEvento(Evento ev)
             }
             break;
         case ASCENT:
-            if (ev == PULSO_CORTO)
+            if (pulso == PULSO_CORTO)
             {
                 estadoActual = DEPLOYMENT;
             }
@@ -79,7 +79,7 @@ void procesarEvento(Evento ev)
             }
             break;
         case DEPLOYMENT:
-            if (ev == PULSO_CORTO)
+            if (pulso == PULSO_CORTO)
             {
                 estadoActual = LANDED;
             }
@@ -96,10 +96,10 @@ void procesarEvento(Evento ev)
 
 void loop() 
 {
-  Evento ev = leerBoton();      
-  if (ev != NINGUNO) 
+  Evento pulso = leerBoton();      
+  if (pulso != NINGUNO) 
   {
-        procesarEvento(ev);
+        procesarEvento(pulso);
   } 
 }
 
