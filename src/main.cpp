@@ -38,6 +38,9 @@ bool ignicionHecha = false;          // para que solo ocurra una vez
 bool ignicionActiva = false;         // ¿el pulso está en curso?
 unsigned long inicioIgnicion = 0;    // cuándo empezó el pulso
 
+unsigned long inicioAscent = 0;     // cuándo entró a ASCENT
+bool ascentRegistrado = false;      // para guardar la hora solo una vez
+
 bool botonAntes = false;          // ¿estaba presionado en la vuelta anterior?
 unsigned long inicioPulso = 0;    // cuándo empezó la pulsación
 unsigned long ultimoCambio = 0;   // para el antirrebote
@@ -218,7 +221,7 @@ void imprimirEstado()
     if (estadoActual != estadoAnterior)
     {
         Serial.print(millis());
-        Serial.print(" ms ");
+        Serial.print(" ms tiempo de respaldo :)");
 
         switch (estadoActual)
         {
@@ -243,6 +246,29 @@ void imprimirEstado()
     }
 }
 
+void actualizarTemporizador()
+{
+    if (estadoActual == ASCENT)
+    {
+        // primera vuelta en ASCENT: guarda la hora de entrada
+        if (!ascentRegistrado)
+        {
+            ascentRegistrado = true;
+            inicioAscent = millis();
+        }
+
+        // pasaron 8 s sin pulsación: despliega
+        if (millis() - inicioAscent >= 8000)
+        {
+            estadoActual = DEPLOYMENT;
+        }
+    }
+    else
+    {
+        ascentRegistrado = false;   // al salir de ASCENT, se reinicia
+    }
+}
+
 void loop() 
 {
   Evento pulso = leerBoton();      
@@ -251,6 +277,7 @@ void loop()
         procesarEvento(pulso);
   } 
   leerBotonTierra();
+  actualizarTemporizador();
   actualizarIgnicion();
   actualizarLEDs();
   imprimirEstado();
