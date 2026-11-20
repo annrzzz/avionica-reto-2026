@@ -29,11 +29,51 @@ enum Evento
 
 Estado estadoActual = IDLE;
 
+bool botonAntes = false;          // ¿estaba presionado en la vuelta anterior?
+unsigned long inicioPulso = 0;    // cuándo empezó la pulsación
+unsigned long ultimoCambio = 0;   // para el antirrebote
+
 // Detectar cuando el boton se presiona y guardar millis() como inicio para luego detectar cuando se suelta y calcular la duracion que serian los millis menos el inicio. Si la duracion < 1000 ms --PULSO_CORTO, si la duracion >= 2000 ms --PULSO_LARGO, si esta entre 1000 y 1999 ms --PULSO_RARO, si no pasa nada absoltmente nada --NINGUNO
 
 Evento leerBoton()
 {
-    return NINGUNO; 
+    // antirrebote: si hubo un cambio hace menos de 30 ms, no hacemos nada
+    if (millis() - ultimoCambio < 30)
+    {
+        return NINGUNO;
+    }
+
+    bool botonAhora = (digitalRead(PIN_BOTON) == PRESIONADO);
+
+    if (botonAhora && !botonAntes)
+    {
+        // acaban de presionar
+        inicioPulso = millis();
+        botonAntes = true;
+        ultimoCambio = millis();
+    }
+    else if (!botonAhora && botonAntes)
+    {
+        // acaban de soltar: ahora medimos cuánto duró
+        unsigned long duracion = millis() - inicioPulso;
+        botonAntes = false;
+        ultimoCambio = millis();
+
+        if (duracion < 1000)
+        {
+            return PULSO_CORTO;
+        }
+        else if (duracion >= 2000)
+        {
+            return PULSO_LARGO;
+        }
+        else
+        {
+            return PULSO_RARO;   // entre 1000 y 1999 ms
+        }
+    }
+
+    return NINGUNO;
 }
 
 void procesarEvento(Evento pulso)
