@@ -7,6 +7,10 @@ const int LED_ARMED = 10;
 const int LED_DEPLOYMENT = 11;
 const int LED_LANDED = 12;
 const int LED_IGNICION = 13;
+const int PIN_BOTON_TIERRA = 14;
+
+bool tierraAntes = false;
+unsigned long ultimoCambioTierra = 0;
 
 const bool PRESIONADO = HIGH; //para que detecte si el boton cierra el circuito o no
 
@@ -28,6 +32,10 @@ enum Evento
 };
 
 Estado estadoActual = IDLE;
+
+bool ignicionHecha = false;          // para que solo ocurra una vez
+bool ignicionActiva = false;         // ¿el pulso está en curso?
+unsigned long inicioIgnicion = 0;    // cuándo empezó el pulso
 
 bool botonAntes = false;          // ¿estaba presionado en la vuelta anterior?
 unsigned long inicioPulso = 0;    // cuándo empezó la pulsación
@@ -136,7 +144,47 @@ void actualizarLEDs()
     digitalWrite(LED_ARMED, estadoActual == ARMED);
     digitalWrite(LED_DEPLOYMENT, estadoActual == DEPLOYMENT);
     digitalWrite(LED_LANDED, estadoActual == LANDED);
-    digitalWrite(LED_IGNICION, LOW);
+    digitalWrite(LED_IGNICION, ignicionActiva);
+}
+
+void actualizarIgnicion()
+{
+    // al entrar a DEPLOYMENT, arranca el pulso (solo la primera vez)
+    if (estadoActual == DEPLOYMENT && !ignicionHecha)
+    {
+        ignicionHecha = true;
+        ignicionActiva = true;
+        inicioIgnicion = millis();
+    }
+
+    // cuando pasan 1000 ms, se apaga
+    if (ignicionActiva && millis() - inicioIgnicion >= 1000)
+    {
+        ignicionActiva = false;
+    }
+}
+
+void leerBotonTierra()
+{
+    // antirrebote
+    if (millis() - ultimoCambioTierra < 30)
+    {
+        return;
+    }
+
+    bool tierraAhora = (digitalRead(PIN_BOTON_TIERRA) == PRESIONADO);
+
+    if (tierraAhora != tierraAntes)
+    {
+        tierraAntes = tierraAhora;
+        ultimoCambioTierra = millis();
+
+        // solo cuando se PRESIONA, y solo si estamos en vuelo
+        if (tierraAhora && estadoActual == ASCENT)
+        {
+            estadoActual = DEPLOYMENT;
+        }
+    }
 }
 
 void loop() 
@@ -146,6 +194,8 @@ void loop()
   {
         procesarEvento(pulso);
   } 
+  leerBotonTierra();
+  actualizarIgnicion();
   actualizarLEDs();
 }
 
@@ -159,5 +209,6 @@ void setup()
   pinMode(LED_DEPLOYMENT, OUTPUT);
   pinMode(LED_LANDED, OUTPUT);
   pinMode(LED_IGNICION, OUTPUT);
+  pinMode(PIN_BOTON_TIERRA, INPUT);
 }
    
