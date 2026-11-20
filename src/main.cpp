@@ -32,6 +32,7 @@ enum Evento
 };
 
 Estado estadoActual = IDLE;
+Estado estadoAnterior = IDLE;
 
 bool ignicionHecha = false;          // para que solo ocurra una vez
 bool ignicionActiva = false;         // ¿el pulso está en curso?
@@ -84,6 +85,31 @@ Evento leerBoton()
     return NINGUNO;
 }
 
+void registrarIgnorado()
+{
+    Serial.print(millis());
+    Serial.print(" ms Ignorado en ");
+
+    switch (estadoActual)
+    {
+        case IDLE:       
+            Serial.println("IDLE");       
+        break;
+        case ARMED:      
+            Serial.println("ARMED");      
+        break;
+        case ASCENT:     
+            Serial.println("ASCENT");     
+        break;
+        case DEPLOYMENT: 
+            Serial.println("DEPLOYMENT"); 
+        break;
+        case LANDED:     
+            Serial.println("LANDED");     
+        break;
+    }
+}
+
 void procesarEvento(Evento pulso)
 {
     switch (estadoActual) 
@@ -95,7 +121,7 @@ void procesarEvento(Evento pulso)
             }
             else 
             {
-                //ignorar
+                registrarIgnorado();
             }
             break;
         case ARMED:
@@ -109,7 +135,7 @@ void procesarEvento(Evento pulso)
             }
             else
             {
-                //ignorar
+                registrarIgnorado();
             }
             break;
         case ASCENT:
@@ -119,7 +145,7 @@ void procesarEvento(Evento pulso)
             }
             else 
             {
-                //ignorar
+                registrarIgnorado();
             }
             break;
         case DEPLOYMENT:
@@ -129,11 +155,11 @@ void procesarEvento(Evento pulso)
             }
             else 
             {
-                //ignorar
+                registrarIgnorado();
             }
             break;
         case LANDED:
-            //ignorar
+            registrarIgnorado();
             break;
     }
 }
@@ -187,6 +213,36 @@ void leerBotonTierra()
     }
 }
 
+void imprimirEstado()
+{
+    if (estadoActual != estadoAnterior)
+    {
+        Serial.print(millis());
+        Serial.print(" ms ");
+
+        switch (estadoActual)
+        {
+            case IDLE:       
+                Serial.println("IDLE");       
+            break;
+            case ARMED:      
+                Serial.println("ARMED");      
+            break;
+            case ASCENT:     
+                Serial.println("ASCENT");     
+            break;
+            case DEPLOYMENT: 
+                Serial.println("DEPLOYMENT"); 
+            break;
+            case LANDED:     
+                Serial.println("LANDED");     
+            break;
+        }
+
+        estadoAnterior = estadoActual;
+    }
+}
+
 void loop() 
 {
   Evento pulso = leerBoton();      
@@ -197,6 +253,7 @@ void loop()
   leerBotonTierra();
   actualizarIgnicion();
   actualizarLEDs();
+  imprimirEstado();
 }
 
 
@@ -210,6 +267,9 @@ void setup()
   pinMode(LED_LANDED, OUTPUT);
   pinMode(LED_IGNICION, OUTPUT);
   pinMode(PIN_BOTON_TIERRA, INPUT);
+
+  Serial.print(millis());
+  Serial.println(" ms IDLE");
 }
    
 // Link aaaaa el wokwi de mi diseño de sistema de ingicion en fisico https://wokwi.com/projects/481073306276356097
