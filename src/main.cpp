@@ -130,6 +130,15 @@ void procesarEvento(Evento pulso)
     }
 }
 
+void actualizarLEDs()
+{
+    digitalWrite(LED_IDLE, estadoActual == IDLE);
+    digitalWrite(LED_ARMED, estadoActual == ARMED);
+    digitalWrite(LED_DEPLOYMENT, estadoActual == DEPLOYMENT);
+    digitalWrite(LED_LANDED, estadoActual == LANDED);
+    digitalWrite(LED_IGNICION, LOW);
+}
+
 void loop() 
 {
   Evento pulso = leerBoton();      
@@ -137,6 +146,7 @@ void loop()
   {
         procesarEvento(pulso);
   } 
+  actualizarLEDs();
 }
 
 
