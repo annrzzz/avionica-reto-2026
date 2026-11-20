@@ -129,7 +129,7 @@ void procesarEvento(Evento pulso)
             }
             else 
             {
-                //ignprar
+                //ignorar
             }
             break;
         case LANDED:
@@ -212,3 +212,4 @@ void setup()
   pinMode(PIN_BOTON_TIERRA, INPUT);
 }
    
+// Link aaaaa el wokwi de mi diseño de sistema de ingicion en fisico https://wokwi.com/projects/481073306276356097
