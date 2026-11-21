@@ -262,9 +262,16 @@ void leerBotonTierra()
         ultimoCambioTierra = millis();
 
         // solo cuando se PRESIONA, y solo si estamos en vuelo
-        if (tierraAhora && estadoActual == ASCENT)
+        if (tierraAhora)
         {
-            cambiarEstado(DEPLOYMENT, "ground command");
+            if (estadoActual == ASCENT)
+            {
+                cambiarEstado(DEPLOYMENT, "ground command");
+            }
+            else
+            {
+                registrarIgnorado();
+            }
         }
     }
 }
