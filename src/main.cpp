@@ -9,6 +9,10 @@ const int LED_LANDED = 12;
 const int LED_IGNICION = 13;
 const int PIN_BOTON_TIERRA = 14;
 
+const int PIN_ALTIMETRO = 26;
+const unsigned long INTERVALO_MUESTRA = 200;   // una muestra cada 200 ms
+const int MUESTRAS_PARA_APOGEO = 5;
+
 bool tierraAntes = false;
 unsigned long ultimoCambioTierra = 0;
 
@@ -44,6 +48,11 @@ bool ascentRegistrado = false;      // para guardar la hora solo una vez
 bool botonAntes = false;          // ¿estaba presionado en la vuelta anterior?
 unsigned long inicioPulso = 0;    // cuándo empezó la pulsación
 unsigned long ultimoCambio = 0;   // para el antirrebote
+
+int altitudAnterior = 0;
+int muestrasBajando = 0;
+bool primeraMuestra = true;
+unsigned long ultimaMuestra = 0;
 
 // Detectar cuando el boton se presiona y guardar millis() como inicio para luego detectar cuando se suelta y calcular la duracion que serian los millis menos el inicio. Si la duracion < 1000 ms --PULSO_CORTO, si la duracion >= 2000 ms --PULSO_LARGO, si esta entre 1000 y 1999 ms --PULSO_RARO, si no pasa nada absoltmente nada --NINGUNO
 
@@ -260,6 +269,49 @@ void leerBotonTierra()
     }
 }
 
+void actualizarAltimetro()
+{
+    // fuera de ASCENT no hacemos nada y reiniciamos el conteo
+    if (estadoActual != ASCENT)
+    {
+        primeraMuestra = true;
+        muestrasBajando = 0;
+        return;
+    }
+
+    // una muestra cada INTERVALO_MUESTRA ms
+    if (millis() - ultimaMuestra < INTERVALO_MUESTRA)
+    {
+        return;
+    }
+    ultimaMuestra = millis();
+
+    int altitud = analogRead(PIN_ALTIMETRO);
+
+    // la primera muestra solo sirve de referencia
+    if (primeraMuestra)
+    {
+        primeraMuestra = false;
+        altitudAnterior = altitud;
+        return;
+    }
+
+    if (altitud < altitudAnterior)
+    {
+        muestrasBajando++;
+    }
+    else
+    {
+        muestrasBajando = 0;
+    }
+
+    altitudAnterior = altitud;
+
+    if (muestrasBajando >= MUESTRAS_PARA_APOGEO)
+    {
+        cambiarEstado(DEPLOYMENT, "apogeo detectado");
+    }
+}
 
 void actualizarTemporizador()
 {
@@ -292,6 +344,7 @@ void loop()
         procesarEvento(pulso);
   } 
   leerBotonTierra();
+  actualizarAltimetro();
   actualizarTemporizador();
   actualizarIgnicion();
   actualizarLEDs();
