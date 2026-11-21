@@ -1,0 +1,211 @@
+\documentclass{article}
+\usepackage[left=1in,right=1in,top=1in,bottom=1in]{geometry}
+\usepackage{graphicx}
+\usepackage[spanish]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta}
+\usepackage[hidelinks]{hyperref}
+ 
+\title{Reclutamiento Aviónica}
+\author{Andrea Ruiz Olvera}
+\date{\today}
+ 
+\begin{document}
+ 
+\maketitle
+ 
+\section{Encabezado}
+\begin{itemize}[nosep]
+    \item \textbf{Nombre:} Andrea Ruiz Olvera
+    \item \textbf{Carrera:} Ingeniería Aeroespacial, 1er semestre
+    \item \textbf{Ruta:} 3, Firmware y sistemas embebidos
+    \item \textbf{Usuario de GitHub:} annrzzz
+    \item \textbf{Repositorio:} \url{https://github.com/annrzzz/avionica-reto-2026}
+    \item \textbf{Simulación en Wokwi:} \url{https://wokwi.com/projects/481073306276356097}
+    \item \textbf{Plataforma:} Raspberry Pi Pico simulada en Wokwi, programada en C++ (framework Arduino) con PlatformIO.
+\end{itemize}
+ 
+\section{Objetivo}
+Diseñé un sistema de recuperación para un cohete que detecta el apogeo y activa el despliegue, controlado por una máquina de 5 estados (\texttt{IDLE}, \texttt{ARMED}, \texttt{ASCENT}, \texttt{DEPLOYMENT}, \texttt{LANDED}) operada con un botón, y con mecanismos de respaldo por si alguno de los otros falla.
+ 
+\section{Desarrollo}
+ 
+\subsection{Decisiones técnicas y por qué}
+ 
+La Tabla~\ref{tab:decisiones} resume las decisiones de diseño y su justificación.
+ 
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{5.2cm} >{\raggedright\arraybackslash}p{10cm}@{}}
+\caption{Decisiones técnicas y su justificación.}\label{tab:decisiones}\\
+\toprule
+\textbf{Decisión} & \textbf{Por qué} \\
+\midrule
+\endhead
+\texttt{switch} por cada estado y un \texttt{if} por cada evento dentro &
+Se ve igual que la tabla del reto. Un evento solo cuenta si la tabla lo permite desde el estado actual, así que no existe ningún camino de \texttt{IDLE} a \texttt{DEPLOYMENT} ni ningún otro cambio no permitido. \\
+Clasificar la pulsación al soltar el botón &
+Solo se sabe cuánto duró cuando termina. Se guarda \texttt{millis()} al presionar y se calcula \texttt{duracion = millis() - inicioPulso} al soltar. \\
+Corta $<$ 1000~ms, larga $\geq$ 2000~ms y todo lo demás es \texttt{PULSO\_RARO} &
+Es más fácil definir ese intervalo como evento raro que adivinar qué quiso hacer el usuario, así que lo ignoro y dejo un registro. \\
+Antirrebote de 30~ms con \texttt{millis()} &
+Ignora cambios del pin durante 30~ms tras cada cambio confirmado, sin bloquear el programa. \\
+Ignición con dos variables (\texttt{ignicionHecha}, \texttt{ignicionActiva}) &
+\texttt{ignicionHecha} se pone en \texttt{true} la primera vez y nunca vuelve a \texttt{false}, por lo que el pulso de 1000~ms ocurre una sola vez sin excepciones. \\
+Detección de apogeo con 5 muestras consecutivas a la baja, una cada 200~ms &
+Una sola lectura menor puede ser ruido. Exigir 5 seguidas evita un despliegue falso. Solo se evalúa en \texttt{ASCENT}. En la simulación, el altímetro es un potenciómetro en el pin GP26. \\
+Temporizador de 8~s medido desde que se entra a \texttt{ASCENT} &
+Garantiza el despliegue aunque el apogeo no se detecte. Una pulsación ignorada en \texttt{ASCENT} no reinicia el reloj, lo que hace la lectura más segura. \\
+Función única \texttt{cambiarEstado(nuevo, motivo)} &
+Todas las transiciones pasan por ahí, así que cada una se registra por el monitor serial con hora, estado anterior, estado nuevo y motivo. \\
+\texttt{registrarIgnorado()} lee \texttt{estadoActual} &
+El mensaje nunca puede nombrar un estado equivocado, porque no hay nombres escritos a mano en cada \texttt{else}. \\
+Patrones de LED por estado &
+Con 4 LEDs de estado y 5 estados, \texttt{ARMED} y \texttt{ASCENT} comparten el LED verde y se distinguen por la velocidad de parpadeo (500~ms y 150~ms). La ignición usa su propio LED rojo y los demás estados tienen su LED. \\
+Botón de estación terrena (extra) &
+Fuerza \texttt{ASCENT} $\rightarrow$ \texttt{DEPLOYMENT} por un comando externo. Solo funciona en \texttt{ASCENT}, para respetar la regla de nunca disparar en tierra. \\
+Impresión por serial &
+Cada transición imprime hora, estado anterior, estado nuevo y motivo, para poder reconstruir el vuelo después. \\
+\bottomrule
+\end{longtable}
+ 
+\subsection{Patrones de LED y conexiones}
+El botón principal está en el pin 15 y el de estación terrena en el pin 14, ambos con resistencia pull-down (presionado = \texttt{HIGH}). La Tabla~\ref{tab:leds} resume los patrones.
+ 
+\begin{table}[H]
+\centering
+\caption{Patrón de LED por estado.}
+\label{tab:leds}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Estado} & \textbf{LED} & \textbf{Patrón} \\
+\midrule
+\texttt{IDLE} & Morado (pin 9) & Fijo \\
+\texttt{ARMED} & Verde (pin 10) & Parpadeo lento \\
+\texttt{ASCENT} & Verde (pin 10) & Parpadeo rápido \\
+\texttt{DEPLOYMENT} & Azul (pin 11) & Fijo \\
+\texttt{LANDED} & Naranja (pin 12) & Fijo \\
+Ignición & Rojo (pin 13) & Encendido solo 1000~ms, en \texttt{DEPLOYMENT} \\
+\bottomrule
+\end{tabular}
+\end{table}
+ 
+\subsection{Conceptos de intervalos}
+La duración de una pulsación es la diferencia entre el instante en que se suelta el botón, $t_s$, y el instante en que se presionó, $t_p$:
+\begin{equation}
+    \Delta t = t_s - t_p
+    \label{eq:duracion}
+\end{equation}
+ 
+Con esa duración se clasifica el evento:
+\begin{equation}
+    \text{evento} =
+    \begin{cases}
+        \texttt{PULSO\_CORTO} & \text{si } \Delta t < 1000 \\
+        \texttt{PULSO\_RARO}  & \text{si } 1000 \leq \Delta t < 2000 \\
+        \texttt{PULSO\_LARGO} & \text{si } \Delta t \geq 2000
+    \end{cases}
+    \label{eq:clasificacion}
+\end{equation}
+ 
+\subsection{Diagrama de estados}
+La Figura~\ref{fig:estados} muestra las transiciones permitidas entre estados.
+ 
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    >=Stealth,
+    estado/.style={draw, rounded corners, minimum width=2.1cm, minimum height=0.9cm, font=\small\ttfamily},
+    final/.style={draw, double, double distance=1.2pt, rounded corners, minimum width=2.1cm, minimum height=0.9cm, font=\small\ttfamily},
+    et/.style={font=\scriptsize, inner sep=2pt}
+]
+    \node[estado] (idle)  at (0,0)    {IDLE};
+    \node[estado] (armed) at (3.6,0)  {ARMED};
+    \node[estado] (asc)   at (7.2,0)  {ASCENT};
+    \node[estado] (dep)   at (10.8,0) {DEPLOYMENT};
+    \node[final]  (land)  at (14.4,0) {LANDED};
+ 
+    \draw[->] (-1.4,0) -- (idle);
+ 
+    \draw[->] (idle) -- node[et, above] {pulsación larga} (armed);
+    \draw[->] (armed) to[bend left=45] node[et, above] {pulsación larga} (idle);
+ 
+    \draw[->] (armed) -- node[et, above] {pulsación corta} (asc);
+ 
+    \draw[->] (asc) -- node[et, above] {pulsación corta} (dep);
+    \draw[->] (asc) to[bend right=30] node[et, below] {apogeo detectado} (dep);
+    \draw[->] (asc) to[bend right=65] node[et, below] {8 s sin pulsación} (dep);
+    \draw[->, dashed] (asc) to[bend left=60] node[et, above] {comando de tierra (extra)} (dep);
+ 
+    \draw[->] (dep) -- node[et, above] {pulsación corta} (land);
+ 
+\end{tikzpicture}}
+\caption{Diagrama de estados del sistema. Cualquier evento que no aparezca en una flecha se ignora y se registra por serial.}
+\label{fig:estados}
+\end{figure}
+ 
+\section{Resultados}
+El firmware se probó en la simulación de Wokwi, disponible en \url{https://wokwi.com/projects/481073306276356097}. La Figura~\ref{fig:circuito} muestra el circuito simulado.
+ 
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{imagenes/wokwi.png}
+    \caption{Diagrama del sistema de ignición en Wokwi.}
+    \label{fig:circuito}
+\end{figure}
+ 
+ 
+\textbf{Video (máximo 60~s):} [https://youtu.be/nTpwDzCFLwg]. Se entrega como enlace porque el \texttt{.gitignore} bloquea los videos pesados.
+ 
+\section{Conclusiones}
+\textbf{Qué funcionó:} la máquina de estados completa, el antirrebote, la distinción entre pulsación corta y larga, la detección de apogeo con el altímetro, el pulso de ignición único de 1000~ms, el temporizador de respaldo de 8~s y el registro serial con hora, todo sin usar \texttt{delay()}.
+ 
+\textbf{Qué no quedó/limitación:} no implementé todos los bonus (FreeRTOS, recuperación ante reinicio con EEPROM). La pulsación entre 1 y 2~s se ignora por decisión propia, porque el reto no la define. El registro dice ``Ignorado en ESTADO'' pero no indica qué tipo de pulsación fue. Además, la detección de apogeo compara solo contra la muestra anterior, lo cual es frágil con un sensor real y ruidoso.
+ 
+\textbf{Qué mejoraría:}
+\begin{itemize}[nosep]
+    \item Guardar el estado en memoria no volátil. Sin eso, un reinicio en pleno vuelo regresaría el sistema a \texttt{IDLE}, y en un cohete real eso podría dejar al paracaídas sin desplegar.
+    \item Filtrar la lectura del altímetro (por ejemplo, con un promedio móvil) antes de comparar.
+    \item Incluir el tipo de pulsación en los mensajes de eventos ignorados.
+    \item Usar FreeRTOS para separar la lectura del botón, los LEDs y el registro con una cola.
+\end{itemize}
+ 
+\section{Bitácora de obstáculos}
+ 
+\subsection{Obstáculo 1: Wokwi y Serial Monitor}
+\begin{itemize}[nosep]
+    \item \textbf{Problema:} Al simular mi circuito en Wokwi no aparecía la pantalla (Serial Monitor) donde deberían salir los datos. Mi \texttt{diagram.json} tenía conexiones virtuales a \texttt{\$serialMonitor} en los pines GP0 y GP1 (UART0), mientras que mi código usa \texttt{Serial} por USB. Además, intenté vincular el proyecto con Visual Studio Code, pero la extensión pedía una licencia.
+    \item \textbf{Consecuencia:} No podía ver los mensajes de transición de estados, por lo que no podía comprobar que la máquina de estados funcionara. Tampoco pude simular desde VS Code, así que probaba el circuito por separado del código.
+    \item \textbf{Solución:} Logré que la pantalla apareciera al simular el proyecto en \texttt{wokwi.com}. La vinculación con Visual Studio Code no la completé porque no tramité la licencia de la extensión. Mantuve el código en VS Code con PlatformIO y lo probé en Wokwi desde el navegador.
+\end{itemize}
+ 
+\subsection{Obstáculo 2: Git y PlatformIO}
+\begin{itemize}[nosep]
+    \item \textbf{Qué intenté:} Había escrito todo mi código dentro del \texttt{README.md} en lugar de en el archivo principal del programa. Luego intenté ejecutar \texttt{git add}, \texttt{commit} y \texttt{push} desde \texttt{\textasciitilde} (mi carpeta de usuario de Git Bash), después mover el repo de carpeta, y configurar PlatformIO para quitar los avisos de \texttt{Arduino.h} en VS Code.
+    \item \textbf{Qué falló:}
+    \begin{itemize}[nosep]
+        \item El código estaba en el \texttt{README.md} y no en \texttt{src/main.cpp}, por lo que PlatformIO no tenía nada que compilar y el código se veía raro, como texto de documentación.
+        \item \texttt{not a git repository}, porque la terminal no estaba dentro del repo.
+        \item Quedaron dos copias del repo (en \texttt{C:} y en \texttt{D:}) y el push se rechazó porque cada una tenía commits que la otra no conocía.
+        \item PlatformIO creó el proyecto en una carpeta aparte (\texttt{codigo\_avionica}) en lugar de usar mi repo.
+        \item Un \texttt{echo} de PowerShell escribió el \texttt{.gitignore} en UTF-16, con caracteres \texttt{NUL}, y apareció un conflicto de guardado en VS Code.
+    \end{itemize}
+    \item \textbf{Cómo lo resolví:} Pasé el código del \texttt{README.md} a \texttt{src/main.cpp}. Verifiqué con \texttt{pwd} y \texttt{git status} dónde estaba, hice \texttt{git pull} para traer los commits faltantes, me quedé con una sola copia, moví \texttt{platformio.ini} a la raíz del repo y \texttt{main.cpp} a \texttt{src/}, y borré la carpeta extra. Sobrescribí el \texttt{.gitignore} con la versión limpia desde VS Code y agregué \texttt{.pio/} y \texttt{.vscode/}.
+\end{itemize}
+ 
+\section{Referencias y uso de IA}
+\begin{itemize}[nosep]
+    \item Documento del Reto de Reclutamiento, División de Aviónica AAIAQ; de Arduino y del framework Arduino para Raspberry Pi Pico (\texttt{millis()}, \texttt{digitalRead()}, \texttt{Serial}); de PlatformIO (\texttt{platformio.ini}) y del simulador Wokwi y documentación de Git/GitHub.
+    \item \textit{Curso Latex - básico}. (s.~f.). YouTube. \url{https://youtube.com/playlist?list=PLxRI-CzeuZzcxfbyj1swsZkQ2oWZPDs5t&si=ITdqRIe1y59fhb1t}
+    \item Arduino Titan. (19 de mayo de 2025). \textit{Raspberry Pi Pico LED Control on Wokwi Simulator | Tutorial} [Video]. YouTube. \url{https://youtu.be/s4QKFw8fh-4?si=Z5Nh8qGOCyPpkxOb}
+    \item \textbf{Uso de IA:} usé Claude como apoyo durante todo el proceso: para entender conceptos (funciones con parámetros, \texttt{millis()} frente a \texttt{delay()}, antirrebote), detectar errores de sintaxis y de orden, resolver problemas de Git y PlatformIO, y ayudar a estructurar este reporte.
+\end{itemize}
+ 
+\end{document}
+ 
