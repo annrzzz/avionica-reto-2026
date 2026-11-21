@@ -372,4 +372,3 @@ void setup()
   Serial.println("[0 ms] IDLE (reset)");
 }
    
-// Link aaaaa el wokwi de mi diseño de sistema de ingicion en fisico https://wokwi.com/projects/481073306276356097
