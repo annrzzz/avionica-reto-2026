@@ -169,11 +169,39 @@ void procesarEvento(Evento pulso)
 
 void actualizarLEDs()
 {
-    digitalWrite(LED_IDLE, estadoActual == IDLE);
-    digitalWrite(LED_ARMED, estadoActual == ARMED);
-    digitalWrite(LED_DEPLOYMENT, estadoActual == DEPLOYMENT);
-    digitalWrite(LED_LANDED, estadoActual == LANDED);
+    // todos apagados por defecto
+    digitalWrite(LED_IDLE, LOW);
+    digitalWrite(LED_ARMED, LOW);
+    digitalWrite(LED_DEPLOYMENT, LOW);
+    digitalWrite(LED_LANDED, LOW);
     digitalWrite(LED_IGNICION, ignicionActiva);
+
+    if (estadoActual == IDLE)
+    {
+        digitalWrite(LED_IDLE, HIGH);            // se queda fijo
+    }
+    else if (estadoActual == ARMED)
+    {
+        if ((millis() / 500) % 2 == 0)           // va lento
+        {
+            digitalWrite(LED_ARMED, HIGH);
+        }
+    }
+    else if (estadoActual == ASCENT)
+    {
+        if ((millis() / 150) % 2 == 0)           // va rápido
+        {
+            digitalWrite(LED_ARMED, HIGH);
+        }
+    }
+    else if (estadoActual == DEPLOYMENT)
+    {
+        digitalWrite(LED_DEPLOYMENT, HIGH);      // igual se queda fijo
+    }
+    else if (estadoActual == LANDED)
+    {
+        digitalWrite(LED_LANDED, HIGH);          // se queda fijp
+    }
 }
 
 void actualizarIgnicion()
