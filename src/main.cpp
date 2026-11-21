@@ -120,7 +120,7 @@ void procesarEvento(Evento pulso)
         case IDLE:
             if (pulso == PULSO_LARGO)
             {
-                estadoActual = ARMED;
+                cambiarEstado(ARMED, "long press");
             }
             else 
             {
@@ -130,11 +130,11 @@ void procesarEvento(Evento pulso)
         case ARMED:
             if (pulso == PULSO_LARGO)
             {
-                estadoActual = IDLE;
+                cambiarEstado(IDLE, "long press");
             }
             else if (pulso == PULSO_CORTO)
             {
-                estadoActual = ASCENT;
+                cambiarEstado(ASCENT, "short press");
             }
             else
             {
@@ -144,7 +144,7 @@ void procesarEvento(Evento pulso)
         case ASCENT:
             if (pulso == PULSO_CORTO)
             {
-                estadoActual = DEPLOYMENT;
+                cambiarEstado(DEPLOYMENT, "short press");
             }
             else 
             {
@@ -154,7 +154,7 @@ void procesarEvento(Evento pulso)
         case DEPLOYMENT:
             if (pulso == PULSO_CORTO)
             {
-                estadoActual = LANDED;
+                cambiarEstado(LANDED, "short press");
             }
             else 
             {
